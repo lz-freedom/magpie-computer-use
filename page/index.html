@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCU</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="_magpie/bridge.js"></script>
+  <!-- 插件加载时由 src/catalog.mjs 根据 magpie 网关与提供方配置生成；缺失时仍可手动输入模型 ID -->
+  <script src="models.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="head">
+      <h1><img class="logo" src="icon.png" alt="" width="26" height="26">MCU</h1>
+      <p>让 Agent 通过本机 ChatGPT Computer Use 操作 macOS 应用。调用 Computer Use 时，任务交给这里选择的模型执行，Agent 收到事实报告和证据截图，自己下结论。</p>
+    </header>
+
+    <div id="page-error" class="banner" role="alert" hidden></div>
+
+    <div class="label">提供给 Agent 的工具</div>
+    <section class="card" role="radiogroup" aria-label="提供给 Agent 的工具" id="tools" data-field="tools">
+      <div class="opt">
+        <button class="row choice" type="button" role="radio" data-value="both" aria-checked="false" disabled>
+          <span class="who"><span class="name">由 Agent 选择</span><span class="sub">两套工具都给 Agent，每次由它挑：委托时用执行模型；自己点时用 Agent 自己的模型。不保证每次都走执行模型</span></span>
+          <svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <details class="more">
+          <summary>详情</summary>
+          <div class="more-body">
+            <div class="step-row">
+              <span class="num" aria-hidden="true">1</span>
+              <div class="who">
+                <div class="name">Agent 拿到两套工具</div>
+                <div class="sub">委托工具 computer_use、look、list_computer_use_models，加上 ChatGPT 原版的直接操作工具 js / js_reset。</div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="num" aria-hidden="true">2</span>
+              <div class="who">
+                <div class="name">调用 computer_use 时按“只用委托”进行</div>
+                <div class="sub">由下面设置的执行模型操作，交回事实报告和证据截图，Agent 自己下结论。</div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="num" aria-hidden="true">3</span>
+              <div class="who">
+                <div class="name">自己调用操作工具时按“只用直接操作”进行</div>
+                <div class="sub">由 Agent 自己的模型一步步操作，界面和截图进入主对话。用哪种由 Agent 根据任务决定。</div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="opt">
+        <button class="row choice" type="button" role="radio" data-value="delegate" aria-checked="false" disabled>
+          <span class="who"><span class="name">只用委托</span><span class="sub"><b>每次都用下面设置的执行模型。</b>Agent 交代任务，执行模型去看截图、操作应用，交回事实报告和报告引用的截图；中间过程的截图不进主对话，省 token</span></span>
+          <svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <details class="more">
+          <summary>详情</summary>
+          <div class="more-body">
+            <div class="step-row">
+              <span class="num" aria-hidden="true">1</span>
+              <div class="who">
+                <div class="name">执行模型只操作、只陈述事实</div>
+                <div class="sub">报告分“做了什么 / 看到的事实 / 未完成”，不评价好坏，不替 Agent 做决定；任务明确问它的意见时，才在最后单列“执行模型的看法”。</div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="num" aria-hidden="true">2</span>
+              <div class="who">
+                <div class="name">截图作为证据交给 Agent</div>
+                <div class="sub">执行模型的每张截图都自动编号保存，不多花一轮往返；报告在事实旁注明编号（#3）。被引用的原图按“回传截图”的数量随结果附上，全部截图存在临时目录，Agent 可按路径打开。</div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="num" aria-hidden="true">3</span>
+              <div class="who">
+                <div class="name">Agent 自己下结论，可以接着指挥</div>
+                <div class="sub">每次委托返回一个 session_id，Agent 带上它再调用，执行模型在原来的画面上继续（“再往下滚”“放大截一张”），闲置 30 分钟失效。Agent 也可以用 look 只看一眼当前屏幕。</div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="opt">
+        <button class="row choice" type="button" role="radio" data-value="direct" aria-checked="false" disabled>
+          <span class="who"><span class="name">只用直接操作</span><span class="sub"><b>不用执行模型，用 Agent 自己的模型。</b>Agent 自己看截图、一步步点击和输入；截图占用主对话的上下文</span></span>
+          <svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <details class="more">
+          <summary>详情</summary>
+          <div class="more-body">
+            <div class="step-row">
+              <span class="num" aria-hidden="true">1</span>
+              <div class="who">
+                <div class="name">Agent 拿到 ChatGPT 原版的 js / js_reset</div>
+                <div class="sub">与 ChatGPT 中的 Computer Use 完全相同：Agent 写一段 JavaScript 调用运行时的 API，一段代码可以连做多步（读界面、点击、输入、截图）。</div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="num" aria-hidden="true">2</span>
+              <div class="who">
+                <div class="name">每一步由 Agent 自己决定</div>
+                <div class="sub">用的是 Agent 自己的模型，界面树和截图直接进入 Agent 的对话，不用执行模型。</div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="num" aria-hidden="true">3</span>
+              <div class="who">
+                <div class="name">没有报告和证据</div>
+                <div class="sub">没有事实报告、证据截图和 session_id。适合 Agent 本身擅长操作电脑，或需要它全程盯着每一步的场景。</div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <div id="executor-section">
+      <div class="label">执行模型</div>
+      <section class="card">
+        <div class="row">
+          <div class="who">
+            <div class="name">默认模型</div>
+            <div class="sub">Agent 调用时传入 <code>model</code> 可临时改用其他模型</div>
+          </div>
+          <button id="model-field" class="field model-field" type="button" aria-haspopup="listbox" aria-expanded="false" disabled>
+            <span class="ic-slot"></span><span class="field-v">正在读取…</span>
+            <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 6.5 8 9.5 11 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="row">
+          <div class="who">
+            <div class="name">推理强度</div>
+            <div class="sub">越高越仔细、越慢、越贵；Auto 不指定，用模型与供应商的默认值</div>
+          </div>
+          <div class="seg" role="radiogroup" aria-label="推理强度" data-field="executorEffort">
+            <button class="choice" type="button" role="radio" data-value="auto" aria-checked="false" disabled>Auto</button>
+            <button class="choice" type="button" role="radio" data-value="low" aria-checked="false" disabled>Low</button>
+            <button class="choice" type="button" role="radio" data-value="medium" aria-checked="false" disabled>Medium</button>
+            <button class="choice" type="button" role="radio" data-value="high" aria-checked="false" disabled>High</button>
+            <button class="choice" type="button" role="radio" data-value="xhigh" aria-checked="false" disabled>XHigh</button>
+            <button class="choice" type="button" role="radio" data-value="max" aria-checked="false" disabled>Max</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="who">
+            <div class="name">最多步数</div>
+            <div class="sub">一次任务最多的模型轮数，1–200</div>
+          </div>
+          <div class="stepper" data-field="maxSteps" data-min="1" data-max="200">
+            <button type="button" class="step" data-delta="-1" aria-label="减少最多步数">−</button>
+            <input id="max-steps" type="number" min="1" max="200" step="1" inputmode="numeric" aria-label="最多步数" disabled>
+            <button type="button" class="step" data-delta="1" aria-label="增加最多步数">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="who">
+            <div class="name">回传截图</div>
+            <div class="sub">每次委托最多把几张证据原图直接交给 Agent，0–10；其余只给文件路径，Agent 需要时再打开</div>
+          </div>
+          <div class="stepper" data-field="evidenceImages" data-min="0" data-max="10">
+            <button type="button" class="step" data-delta="-1" aria-label="减少回传截图">−</button>
+            <input id="evidence-images" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="回传截图" disabled>
+            <button type="button" class="step" data-delta="1" aria-label="增加回传截图">+</button>
+          </div>
+        </div>
+      </section>
+      <p class="note">执行模型经 magpie 网关调用，上游用哪种接口由 magpie 中该模型的供应商设置决定。GPT 模型（例如 Terra）建议在供应商里把接口设为 <b>OpenAI Responses</b>：推理内容能在步骤之间延续，提示缓存也能生效。实测 10 个桌面任务，比转成 Chat Completions 快约 4 倍、费用约为 1/3。改完供应商设置后需重启 magpie 才生效。</p>
+    </div>
+
+    <div class="label">浏览器</div>
+    <section class="card">
+      <div class="row">
+        <div class="who">
+          <div class="name">使用 Chrome 扩展操作网页</div>
+          <div class="sub">开启后，执行模型和 Agent 拿到 ChatGPT 原版的浏览器 API，直接打开和操作 Chrome 标签页，不用把 Chrome 当普通应用一点点点击。需要 Chrome 里装有 ChatGPT 扩展；MCU 会把扩展的连接改为经 LCU（lcu browser install），ChatGPT 应用自己的 Chrome 功能照常可用</div>
+        </div>
+        <button id="chrome-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="使用 Chrome 扩展操作网页" disabled><span class="knob" aria-hidden="true"></span></button>
+      </div>
+      <div class="browser-status" id="chrome-status" hidden>
+        <div class="checks" id="chrome-checks"></div>
+        <div class="status-foot">
+          <span id="chrome-checked" class="checked"></span>
+          <button id="chrome-check" class="btn" type="button" disabled>重新检测</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="label">应用授权</div>
+    <section class="card" role="radiogroup" aria-label="应用授权" id="approval" data-field="approval">
+      <button class="row choice" type="button" role="radio" data-value="manual" aria-checked="false" disabled>
+        <span class="who"><span class="name">手动授权</span><span class="sub">第一次操作某个应用时询问你，可选本次会话内不再询问或以后始终允许</span></span>
+        <svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="row choice" type="button" role="radio" data-value="agent" aria-checked="false" disabled>
+        <span class="who"><span class="name">跟随 Agent 权限模式</span><span class="sub">按 Claude Code 当前的权限模式：bypass permissions、auto mode 直接允许；默认与 accept edits 询问；plan 拒绝。选择后会在 Claude Code 设置中加一个钩子；其他 Agent 按手动授权询问</span></span>
+        <svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="row choice" type="button" role="radio" data-value="auto" aria-checked="false" disabled>
+        <span class="who"><span class="name">所有应用直接允许</span><span class="sub warn">不再询问，模型可以操作任何应用（终端、Agent 宿主与 magpie 除外）。只在开着时生效，不写入永久授权</span></span>
+        <svg class="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </section>
+
+    <p class="note tail">修改工具后，需要在 Agent 中重连本插件的 MCP 或新开会话，工具列表才会更新；其他设置下一次调用即生效。</p>
+
+    <footer class="foot">
+      <span id="status" class="status" role="status" aria-live="polite">正在读取设置…</span>
+      <span id="catalog-note" class="catalog-note"></span>
+    </footer>
+  </main>
+
+  <div id="picker" class="pop model-picker" role="dialog" aria-label="选择模型" hidden>
+    <div class="search">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input id="picker-input" type="text" spellcheck="false" autocomplete="off" placeholder="筛选，或输入任意模型 ID…" aria-label="筛选模型">
+    </div>
+    <div class="picker-body">
+      <nav id="picker-rail" aria-label="按提供方筛选"></nav>
+      <ul id="picker-list" role="listbox" aria-label="模型"></ul>
+    </div>
+  </div>
+  <div id="rail-tip" class="rail-tip" role="tooltip"></div>
+</body>
+</html>
